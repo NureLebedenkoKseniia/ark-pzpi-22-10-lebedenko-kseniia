@@ -1,1 +1,345 @@
+МІНІСТЕРСТВО ОСВІТИ І НАУКИ УКРАЇНИ
 
+ХАРКІВСЬКИЙ НАЦІОНАЛЬНИЙ
+УНІВЕРСИТЕТ РАДІОЕЛЕКТРОНІКИ
+
+Кафедра «Програмна інженерія»
+
+
+
+ЗВІТ
+з практичної роботи №2
+з дисципліни «Аналіз та рефакторинґ коду»
+на тему «Методи рефакторингу коду програмного забезпечення»
+
+
+
+
+
+
+
+Виконала:                                                                                               Прийняв:
+ст. гр. ПЗПІ-23-9                                                                                    ст. викл. ПІ
+Лебеденко К. А.                                                                                     Сокорчук І. П.
+
+
+
+
+
+Харків 2025
+
+1 ІСТОРІЯ ЗМІН
+№
+Дата
+Версія звіту
+Опис змін та виправлень
+1
+20.10.2025
+0.1
+Ознайомлення з методами рефакторингу (Мартін Фаулер)
+2
+22.10.2025
+0.2
+Вибір трьох методів: Consolidate Duplicate Conditional Fragments, Convert Procedural Design to Objects, Encapsulate Downcast
+3
+25.10.2025
+1.0
+Підготовка прикладів коду, створення презентації та оформлення звіту
+2 ЗАВДАННЯ
+Мета заняття: 
+Навчити студентів основним методам рефакторингу коду на основі реальних прикладів з їхніх власних програмних проєктів. Студенти повинні навчитися ідентифікувати проблеми в коді та використовувати відповідні методи рефакторингу для покращення його якості.
+Завдання: 
+Студент повинен обрати три методи рефакторингу коду із книги Мартіна Фаулера «Refactoring. Improving the Design of Existing Code». Навести приклади свого особистого коду, який потребує покращення, та продемонструвати застосування обраних методів.
+Кроки виконання:
+1. Вибір методів рефакторингу.
+2. Опис проблеми та доцільність рефакторингу.
+3. Застосування методу рефакторингу (код до та після).
+4. Пояснення покращень.
+5. Підготовка презентації та звіту.
+3 ОПИС ВИКОНАНОЇ РОБОТИ
+Для виконання практичної роботи було проаналізовано власний проєкт, написаний мовою C#. Було виявлено ділянки коду, що порушують принципи чистого коду (DRY, SRP) та ускладнюють підтримку. Для оптимізації було обрано три методи рефакторингу за Мартіном Фаулером.
+
+
+3.1 Метод 1: Consolidate Duplicate Conditional Fragments 
+Опис проблеми: 
+У методі обробки подій натискання кнопки (button3_Click) було виявлено дублювання виклику методу AcceptChanges() у всіх гілках умовної конструкції if-else. Це порушує принцип DRY (Don't Repeat Yourself). Якщо логіку завершення транзакції потрібно буде змінити, доведеться вносити правки у кожну гілку окремо, що підвищує ризик помилок.
+Застосування методу: 
+Було застосовано метод "Consolidate Duplicate Conditional Fragments". Повторюваний фрагмент коду винесено за межі умовної конструкції, оскільки він виконується незалежно від того, яка умова спрацювала.
+Код до рефакторингу:
+private void button3_Click(object sender, EventArgs e)
+{
+    if (label1.Text == "Plants")
+    {
+        plantTableAdapter.DeleteQuery(...);
+        plantTableAdapter.Fill(flowerShopDataSet.Plant);
+        // Повторюється в кожному блоці
+        flowerShopDataSet.AcceptChanges();
+    }
+    else if (label1.Text == "Categories")
+    {
+        categoryTableAdapter1.DeleteQuery(...);
+        // Повторюється в кожному блоці
+        flowerShopDataSet.AcceptChanges();
+    }
+}
+Код після рефакторингу:
+private void button3_Click(object sender, EventArgs e)
+{
+    if (label1.Text == "Plants")
+    {
+        plantTableAdapter.DeleteQuery(...);
+        plantTableAdapter.Fill(flowerShopDataSet.Plant);
+    }
+    else if (label1.Text == "Categories")
+    {
+        categoryTableAdapter1.DeleteQuery(...);
+    }
+    // ... інші умови ...
+
+    // Викликається один раз для всіх випадків
+    flowerShopDataSet.AcceptChanges();
+}
+Переваги: 
+Код став лаконічнішим. Усунуто дублювання, що спрощує підтримку та майбутні зміни логіки збереження даних.
+3.2 Метод 2: Convert Procedural Design to Objects 
+Опис проблеми: 
+У класі Form2 метод GenerateSupplyReport містив змішану логіку: підключення до бази даних, формування SQL-запиту, налаштування діалогових вікон (UI) та безпосередню генерацію PDF-документа. Це є порушенням принципу єдиної відповідальності (Single Responsibility Principle - SRP). Клас форми відповідав за надто велику кількість різнорідних задач, що робило його важким для читання та тестування.
+Застосування методу: 
+Було створено окремий клас SupplyReportGenerator, до якого винесено всю бізнес-логіку генерації звіту. Клас форми тепер відповідає лише за UI-логіку (відображення діалогу збереження) та ініціює роботу генератора.
+Код до рефакторингу:
+private void GenerateSupplyReport(int supplierId, string supplierName)
+{
+    // 1. Логіка підключення до БД
+    string connectionString = "Server=KSENIYA-PC59; ... ";
+    string query = @"SELECT * FROM Supply ... ";
+
+    // 2. Логіка інтерфейсу
+    SaveFileDialog saveFileDialog = new SaveFileDialog();
+
+    if (saveFileDialog.ShowDialog() == DialogResult.OK) {
+        // 3. Логіка створення PDF (iText)
+        using (PdfWriter writer = new PdfWriter(...)) {
+            // ... ще 50 рядків коду ...
+        }
+    }
+}
+Код після рефакторингу:
+Клас SupplyReportGenerator.cs:
+public class SupplyReportGenerator
+{
+    public void Generate(int id, string name, string path)
+    {
+        var data = GetData(id);
+        if (data.Rows.Count == 0) throw new Exception("Data not found");
+        
+        CreatePdf(data, name, path);
+    }
+
+    private DataTable GetData(int id) { ... }
+    private void CreatePdf(...) { ... }
+}
+Клас Form2.cs (Виклик):
+private void button7_Click(...)
+{
+    // Тільки UI логіка
+    if (saveDialog.ShowDialog() == DialogResult.OK)
+    {
+        var reporter = new SupplyReportGenerator();
+        reporter.Generate(id, name, path);
+    }
+}
+Переваги: 
+Підвищено модульність системи. Бізнес-логіка відокремлена від інтерфейсу, що дозволяє повторно використовувати генератор звітів в інших частинах програми та спрощує модульне тестування.
+3.3 Метод 3: Encapsulate Downcast
+Опис проблеми: 
+У проєкті часто використовувалося отримання значень з DataGridView, які повертаються як тип object. Це призводило до необхідності постійно використовувати явне приведення типів Convert.ToInt32(...) безпосередньо в бізнес-логіці методів. Такий код є "брудним", важко читається та дублюється у багатьох місцях.
+Застосування методу: 
+Логіку отримання ID та приведення типів було інкапсульовано в окремий приватний метод GetSelectedId(). Тепер основні методи працюють з чистими даними, а складність приведення прихована.
+Код до рефакторингу:
+private void button2_Click(object sender, EventArgs e)
+{
+    if (label1.Text == "Plants")
+    {
+        // "Сире" приведення типів прямо в логіці
+        int id = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells[0].Value);
+        plantTableAdapter.FillBy(st, id);
+    }
+    else if (label1.Text == "Categories")
+    {
+        // Знову те саме ...
+        int id = Convert.ToInt32(dataGridView1.SelectedRows[0].Cells[0].Value);
+        categoryTableAdapter1.FillBy(st, id);
+    }
+}
+Код після рефакторингу:
+// Новий метод-хелпер
+private int GetSelectedId()
+{
+    if (dataGridView1.SelectedRows.Count > 0)
+        return Convert.ToInt32(dataGridView1.SelectedRows[0].Cells[0].Value);
+    throw new Exception("Рядок не обрано");
+}
+
+private void button2_Click(...)
+{
+    if (label1.Text == "Plants")
+    {
+        // Чистий виклик, тип гарантовано int
+        plantTableAdapter.FillBy(st, GetSelectedId());
+    }
+}
+Переваги: 
+Покращено читабельність коду. Логіка отримання даних стала безпечнішою завдяки централізованій обробці в одному методі.
+4 ВИСНОВКИ
+В ході виконання практичної роботи було проведено рефакторинг програмного коду на мові C# з використанням методів, описаних Мартіном Фаулером.
+Було досягнуто результатів:
+1. Зменшення дублювання коду: Завдяки методу Consolidate Duplicate Conditional Fragments код став більш чистим, а внесення змін у майбутньому потребуватиме менше зусиль.
+2. Покращення архітектури: Використання Convert Procedural Design to Objects дозволило розділити відповідальність між класами, відокремивши UI від бізнес-логіки.
+3. Підвищення безпеки типів: Метод Encapsulate Downcast дозволив приховати "брудне" приведення типів та зробити код більш надійним.
+Застосування цих методів значно підвищило якість коду, його читабельність та придатність до розширення.
+5 ВИКОРИСТАНІ ДЖЕРЕЛА
+1. Fowler M. Refactoring: Improving the Design of Existing Code / Martin Fowler. — 2nd ed. — Addison-Wesley Professional, 2018. — 448 p.
+2. Martin R. C. Clean Code: A Handbook of Agile Software Craftsmanship / Robert C. Martin. — Upper Saddle River: Prentice Hall, 2008. — 464 p.
+3. Microsoft Learn: C# Coding Conventions [Електронний ресурс]. – Режим доступу: https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ДОДАТОК А
+Відеозапис
+Відеозапис доповіді: https://youtu.be/jLtkNYnA9gI
+Хронологічний опис відеозапису: 
+* 00:00 — Слайд 1: Титульний слайд. Вступ. 
+* 00:42 — Слайд 2: Обрані методи рефакторингу. 
+* 01:37 — Слайд 3: Consolidate Duplicate Conditional Fragments (Теорія). 
+* 02:24 — Слайд 4: Приклад коду "До" (дублювання AcceptChanges). 
+* 03:14 — Слайд 5: Приклад коду "Після" та пояснення. 
+* 03:55 — Слайд 6: Convert Procedural Design to Objects (Теорія). 
+* 04:40 — Слайд 7: Проблема великого методу в Form2.cs. 
+* 05:25 — Слайд 8: Рішення: клас SupplyReportGenerator. 
+* 06:10 — Слайд 9: Encapsulate Downcast (Теорія). 
+* 06:54 — Слайд 10: Проблема явного приведення типів (Convert.ToInt32). 
+* 07:34 — Слайд 11: Рішення: метод GetSelectedId(). 
+* 08:08 — Слайд 12: Висновки. 
+* 08:49 — Слайд 13: Використані джерела.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ДОДАТОК Б
+Слайди презентації
+
+Рисунок Б.1 — Титульний слайд презентації
+
+Рисунок Б.2 — Перелік обраних методів рефакторингу
+
+Рисунок Б.3 — Опис методу Consolidate Duplicate Conditional Fragments
+
+Рисунок Б.4 — Приклад коду до рефакторингу (Дублювання)
+
+Рисунок Б.5 — Приклад коду після рефакторингу (Оптимізація)
+
+Рисунок Б.6 — Опис методу Convert Procedural Design to Objects
+
+Рисунок Б.7 — Приклад процедурного коду
+
+Рисунок Б.8 — Приклад об'єктно-орієнтованого підходу
+
+Рисунок Б.9 — Опис методу Encapsulate Downcast
+
+Рисунок Б.10 — Приклад коду з явним приведенням типів
+
+Рисунок Б.11 — Приклад інкапсуляції приведення
+
+Рисунок Б.12 — Висновки
+
+Рисунок Б.13 — Список літератури
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ДОДАТОК В
+Програмний код
+В.1 Приклад методу Consolidate Duplicate Conditional Fragments 
+GitHub репозиторій: https://github.com/NureLebedenkoKseniia/ark-pzpi-22-10-lebedenko-kseniia/blob/main/Pract2/pzpi-23-9-lebedenko-kseniia-pract2/code-examples-refactoring-methods.cs
+// BEFORE
+if (label1.Text == "Plants") {
+    plantTableAdapter.DeleteQuery(...);
+    flowerShopDataSet.AcceptChanges(); // Duplicate
+} else if (label1.Text == "Categories") {
+    categoryTableAdapter1.DeleteQuery(...);
+    flowerShopDataSet.AcceptChanges(); // Duplicate
+}
+
+// AFTER
+if (label1.Text == "Plants") {
+    plantTableAdapter.DeleteQuery(...);
+} else if (label1.Text == "Categories") {
+    categoryTableAdapter1.DeleteQuery(...);
+}
+flowerShopDataSet.AcceptChanges(); // Consolidated
+В.2 Приклад методу Convert Procedural Design to Objects 
+GitHub репозиторій: https://github.com/NureLebedenkoKseniia/ark-pzpi-22-10-lebedenko-kseniia/blob/main/Pract2/pzpi-23-9-lebedenko-kseniia-pract2/code-examples-refactoring-methods.cs
+// New Class for Logic
+public class SupplyReportGenerator {
+    public void Generate(int id, string name, string path) {
+        var data = GetData(id);
+        if (data.Rows.Count == 0) throw new Exception();
+        CreatePdf(data, name, path);
+    }
+}
+
+
+В.3 Приклад методу Encapsulate Downcast 
+GitHub репозиторій: https://github.com/NureLebedenkoKseniia/ark-pzpi-22-10-lebedenko-kseniia/blob/main/Pract2/pzpi-23-9-lebedenko-kseniia-pract2/code-examples-refactoring-methods.cs
+// Helper Method
+private int GetSelectedId() {
+    if (dataGridView1.SelectedRows.Count > 0)
+        return Convert.ToInt32(dataGridView1.SelectedRows[0].Cells[0].Value);
+    throw new Exception("Рядок не обрано");
+}
