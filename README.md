@@ -8,4 +8,6 @@
 
 Застосування методів рефакторингу коду програмного забезпечення: Consolidate Duplicate Conditional Fragments, Convert Procedural Design to Objects та Encapsulate Downcast
 
+Програмна система догляду за тваринами в зоопарках
+
 ---
